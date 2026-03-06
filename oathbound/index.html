@@ -26,8 +26,8 @@
 
       #unity-canvas {
         display: block;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
         background: #000;
       }
     </style>
@@ -42,29 +42,22 @@
 
       const config = {
         arguments: [],
-        dataUrl: "Build/proto_1.data",
-        frameworkUrl: "Build/proto_1.framework.js",
-        codeUrl: "Build/proto_1.wasm",
+        dataUrl: "Build/proto_2.data",
+        frameworkUrl: "Build/proto_2.framework.js",
+        codeUrl: "Build/proto_2.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "MintX",
         productName: "oathbound",
         productVersion: "1.0",
+        matchWebGLToCanvasSize: true,
+        devicePixelRatio: 1,
       };
 
       const script = document.createElement("script");
-      script.src = "Build/proto_1.loader.js";
+      script.src = "Build/proto_2.loader.js";
       script.onload = () => {
         createUnityInstance(canvas, config)
-          .then((unityInstance) => {
-            const resizeCanvas = () => {
-              canvas.width = window.innerWidth;
-              canvas.height = window.innerHeight;
-              unityInstance.Module?.setCanvasSize?.(window.innerWidth, window.innerHeight);
-            };
-
-            window.addEventListener("resize", resizeCanvas);
-            resizeCanvas();
-          })
+          .then(() => {})
           .catch((message) => {
             alert(message);
           });
