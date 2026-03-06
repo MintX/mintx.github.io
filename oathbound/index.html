@@ -42,19 +42,19 @@
 
       const config = {
         arguments: [],
-        dataUrl: "Build/proto_2.data",
-        frameworkUrl: "Build/proto_2.framework.js",
-        codeUrl: "Build/proto_2.wasm",
+        dataUrl: "Build/proto_3.data",
+        frameworkUrl: "Build/proto_3.framework.js",
+        codeUrl: "Build/proto_3.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "MintX",
         productName: "oathbound",
         productVersion: "1.0",
         matchWebGLToCanvasSize: true,
-        devicePixelRatio: 1,
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       };
 
       const script = document.createElement("script");
-      script.src = "Build/proto_2.loader.js";
+      script.src = "Build/proto_3.loader.js";
       script.onload = () => {
         createUnityInstance(canvas, config)
           .then(() => {})
