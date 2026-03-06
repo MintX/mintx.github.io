@@ -42,9 +42,9 @@
 
       const config = {
         arguments: [],
-        dataUrl: "Build/proto_0.data",
-        frameworkUrl: "Build/proto_0.framework.js",
-        codeUrl: "Build/proto_0.wasm",
+        dataUrl: "Build/proto_1.data",
+        frameworkUrl: "Build/proto_1.framework.js",
+        codeUrl: "Build/proto_1.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "MintX",
         productName: "oathbound",
@@ -52,7 +52,7 @@
       };
 
       const script = document.createElement("script");
-      script.src = "Build/proto_0.loader.js";
+      script.src = "Build/proto_1.loader.js";
       script.onload = () => {
         createUnityInstance(canvas, config)
           .then((unityInstance) => {
