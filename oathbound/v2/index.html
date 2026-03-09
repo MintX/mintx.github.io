@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no"
+    />
+    <title>oathbound</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #unity-container {
+        position: fixed;
+        inset: 0;
+      }
+
+      #unity-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+    </div>
+
+    <script>
+      const canvas = document.querySelector("#unity-canvas");
+
+      const config = {
+        arguments: [],
+        dataUrl: "Build/v2.data.unityweb",
+        frameworkUrl: "Build/v2.framework.js.unityweb",
+        codeUrl: "Build/v2.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "MintX",
+        productName: "oathbound",
+        productVersion: "1.0",
+        matchWebGLToCanvasSize: true,
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      };
+
+      const script = document.createElement("script");
+      script.src = "Build/v2.loader.js";
+      script.onload = () => {
+        createUnityInstance(canvas, config)
+          .then(() => {})
+          .catch((message) => {
+            alert(message);
+          });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
