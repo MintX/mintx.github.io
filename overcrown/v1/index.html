@@ -54,9 +54,9 @@
 
       const config = {
         arguments: [],
-        dataUrl: "Build/overcrown_1.data.unityweb",
-        frameworkUrl: "Build/overcrown_1.framework.js.unityweb",
-        codeUrl: "Build/overcrown_1.wasm.unityweb",
+        dataUrl: "Build/v1.data.unityweb",
+        frameworkUrl: "Build/v1.framework.js.unityweb",
+        codeUrl: "Build/v1.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Ovione",
         productName: "OverCrown",
@@ -66,7 +66,7 @@
       };
 
       const script = document.createElement("script");
-      script.src = "Build/overcrown_1.loader.js";
+      script.src = "Build/v1.loader.js";
       script.onload = () => {
         createUnityInstance(canvas, config)
           .then(() => {})
