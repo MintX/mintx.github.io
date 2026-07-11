@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>OverCrown</title>
+
+    <!-- PWA: Add to Home Screen (Android / iOS) -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#15121f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+    <!-- iOS standalone web app -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="OverCrown" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #unity-container {
+        position: fixed;
+        inset: 0;
+      }
+
+      #unity-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+    </div>
+
+    <script>
+      const canvas = document.querySelector("#unity-canvas");
+
+      const config = {
+        arguments: [],
+        dataUrl: "Build/overcrown_1.data.unityweb",
+        frameworkUrl: "Build/overcrown_1.framework.js.unityweb",
+        codeUrl: "Build/overcrown_1.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Ovione",
+        productName: "OverCrown",
+        productVersion: "1.0",
+        matchWebGLToCanvasSize: true,
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      };
+
+      const script = document.createElement("script");
+      script.src = "Build/overcrown_1.loader.js";
+      script.onload = () => {
+        createUnityInstance(canvas, config)
+          .then(() => {})
+          .catch((message) => {
+            alert(message);
+          });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
