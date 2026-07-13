@@ -82,21 +82,23 @@
     </script>
 
     <script>
-      // SafeArea 진단용: URL 끝에 #safe 를 붙이면 좌상단에 실제 env(safe-area-inset-*)
-      // 값을 표시한다(모바일 PWA는 콘솔 접근이 어려워 화면 표시가 실용적). 기본은 꺼짐.
-      if (location.hash.indexOf("safe") >= 0) {
+      // SafeArea 진단 HUD. 설치형 PWA는 주소창이 없어 URL 해시(#safe)를 못 붙이므로
+      // 지금은 **항상 표시**한다(진단 후 이 블록을 제거하거나 다시 #safe 게이트로 되돌린다).
+      // HUD를 탭하면 숨겨진다. 좌상단에 실제 env(safe-area-inset-*)·뷰포트 값을 보여준다.
+      if (true) {
         var saProbe = document.createElement("div");
         saProbe.style.cssText =
           "position:fixed;top:0;left:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
         document.body.appendChild(saProbe);
         var saHud = document.createElement("div");
         saHud.style.cssText =
-          "position:fixed;left:6px;top:6px;z-index:99999;font:12px/1.4 monospace;color:#0f0;background:rgba(0,0,0,.75);padding:6px;pointer-events:none;white-space:pre";
+          "position:fixed;left:6px;top:6px;z-index:99999;font:13px/1.5 monospace;color:#0f0;background:rgba(0,0,0,.8);padding:8px;pointer-events:auto;cursor:pointer;white-space:pre;border:1px solid #0f0";
+        saHud.addEventListener("click", function () { saHud.style.display = "none"; });
         document.body.appendChild(saHud);
         var saUpdate = function () {
           var c = getComputedStyle(saProbe);
           saHud.textContent =
-            "safe-area insets\nT:" + c.paddingTop + "  B:" + c.paddingBottom +
+            "SAFE-AREA (탭하면 숨김)\nT:" + c.paddingTop + "  B:" + c.paddingBottom +
             "\nL:" + c.paddingLeft + "  R:" + c.paddingRight +
             "\nvw:" + window.innerWidth + " vh:" + window.innerHeight +
             " dpr:" + (window.devicePixelRatio || 1);
