@@ -46,12 +46,58 @@
         height: 100%;
         background: #000;
       }
+
+      /* 세로 고정 폴백: manifest orientation이 안 먹는 환경(iOS PWA·브라우저 탭)에서
+         가로가 되면 게임을 가리고 세로 안내를 띄운다. 세로에서는 숨김. */
+      #rotate-hint {
+        display: none;
+      }
+      @media (orientation: landscape) {
+        #rotate-hint {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          position: fixed;
+          inset: 0;
+          z-index: 100000;
+          background: #15121f;
+          color: #f5efe0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          text-align: center;
+          padding: 24px;
+          gap: 12px;
+        }
+        #rotate-hint .rh-icon {
+          font-size: 12vmin;
+        }
+        #rotate-hint .rh-text {
+          font-size: 4.2vmin;
+          line-height: 1.5;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="unity-container">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
     </div>
+
+    <div id="rotate-hint">
+      <div class="rh-icon">📱↻</div>
+      <div class="rh-text">세로 모드로 이용해 주세요<br />Please rotate to portrait</div>
+    </div>
+
+    <script>
+      // 세로 고정 베스트-에포트: 안드로이드 브라우저/전체화면에서 동작. iOS Safari·비전체화면
+      // 탭은 미지원이라 조용히 실패(→ 위 CSS 오버레이가 폴백). 설치형 PWA는 manifest가 담당.
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          var p = screen.orientation.lock("portrait");
+          if (p && p.catch) { p.catch(function () {}); }
+        }
+      } catch (e) {}
+    </script>
 
     <script>
       const canvas = document.querySelector("#unity-canvas");
@@ -82,10 +128,10 @@
     </script>
 
     <script>
-      // SafeArea 진단 HUD. 설치형 PWA는 주소창이 없어 URL 해시(#safe)를 못 붙이므로
-      // 지금은 **항상 표시**한다(진단 후 이 블록을 제거하거나 다시 #safe 게이트로 되돌린다).
-      // HUD를 탭하면 숨겨진다. 좌상단에 실제 env(safe-area-inset-*)·뷰포트 값을 보여준다.
-      if (true) {
+      // SafeArea 진단 HUD. 기본은 꺼짐 — 브라우저에서 URL 끝에 #safe 를 붙이면 좌상단에
+      // 실제 env(safe-area-inset-*)·뷰포트 값을 표시(탭하면 숨김). 설치형 PWA는 주소창이
+      // 없어 해시를 못 붙이므로, PWA에서 다시 봐야 하면 이 조건을 잠시 true로 바꿔 빌드한다.
+      if (location.hash.indexOf("safe") >= 0) {
         var saProbe = document.createElement("div");
         saProbe.style.cssText =
           "position:fixed;top:0;left:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
