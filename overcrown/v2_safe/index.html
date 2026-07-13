@@ -31,18 +31,13 @@
         background: #000;
       }
 
-      /* SafeArea: env(safe-area-inset-*)로 캔버스 컨테이너를 인셋해 노치/홈바/상태바를
-         피한다. viewport-fit=cover(위 meta) 전제. 인셋 밴드는 컨테이너 배경색으로 보인다.
-         box-sizing:border-box라 캔버스(width/height:100%)가 패딩 안쪽만 채운다.
-         PWA 안전영역은 여기서 담당(브라우저 레이어라 가장 확실). 네이티브 iOS/Android는
-         Unity의 SafeAreaFitter(Screen.safeArea)가 담당. */
+      /* 캔버스는 뷰포트 전체를 채운다(풀사이즈). 안전영역 인셋은 CSS로 캔버스를 줄이지
+         않고 Unity 내부에서 처리한다 — CSS로 캔버스를 인셋하면 Screen 크기가 바뀌어
+         CanvasScaler(430×900) 스케일이 깨지기 때문. viewport-fit=cover(위 meta)는 유지해야
+         .jslib가 env(safe-area-inset-*)를 읽을 수 있다. */
       #unity-container {
         position: fixed;
         inset: 0;
-        box-sizing: border-box;
-        padding: env(safe-area-inset-top) env(safe-area-inset-right)
-          env(safe-area-inset-bottom) env(safe-area-inset-left);
-        background: #15121f;
       }
 
       #unity-canvas {
