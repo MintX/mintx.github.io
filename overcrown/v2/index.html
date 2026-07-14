@@ -48,11 +48,13 @@
       }
 
       /* 세로 고정 폴백: manifest orientation이 안 먹는 환경(iOS PWA·브라우저 탭)에서
-         가로가 되면 게임을 가리고 세로 안내를 띄운다. 세로에서는 숨김. */
+         가로가 되면 게임을 가리고 세로 안내를 띄운다. 세로에서는 숨김.
+         모바일에서만 적용 — pointer:coarse + hover:none 은 터치 기기(폰/태블릿)를
+         가리키므로, 데스크톱 브라우저를 가로로 써도 오버레이가 뜨지 않는다. */
       #rotate-hint {
         display: none;
       }
-      @media (orientation: landscape) {
+      @media (orientation: landscape) and (pointer: coarse) and (hover: none) {
         #rotate-hint {
           display: flex;
           flex-direction: column;
@@ -91,8 +93,11 @@
     <script>
       // 세로 고정 베스트-에포트: 안드로이드 브라우저/전체화면에서 동작. iOS Safari·비전체화면
       // 탭은 미지원이라 조용히 실패(→ 위 CSS 오버레이가 폴백). 설치형 PWA는 manifest가 담당.
+      // 모바일(터치·hover 불가)에서만 시도 — 데스크톱에서는 잠그지 않는다.
       try {
-        if (screen.orientation && screen.orientation.lock) {
+        var isMobile = window.matchMedia &&
+          window.matchMedia("(pointer: coarse) and (hover: none)").matches;
+        if (isMobile && screen.orientation && screen.orientation.lock) {
           var p = screen.orientation.lock("portrait");
           if (p && p.catch) { p.catch(function () {}); }
         }
