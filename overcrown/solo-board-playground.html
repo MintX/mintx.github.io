@@ -178,7 +178,14 @@
     </div>
 
     <div class="grp">
-      <h3>손패 부채</h3>
+      <h3>손패 배치</h3>
+      <div class="seg" id="fanModeSeg">
+        <button data-fan="arc" class="on">부채 (원호 + 회전)</button>
+        <button data-fan="flat">평면 (균등)</button>
+      </div>
+      <p class="hint">평면은 회전·원호 없이 <b>가로로만 균등 배치</b>합니다 — 좁으면 그만큼 겹칩니다.
+        이때 반경·각도는 쓰이지 않습니다.</p>
+      <div class="row"><label>원점 Y</label><input type="range" id="fanY" min="-30" max="200" value="72"><span class="v" id="fanYV">72</span></div>
       <div class="row"><label>반경</label><input type="range" id="fanR" min="180" max="1400" value="531"><span class="v" id="fanRV">531</span></div>
       <div class="row"><label>각도</label><input type="range" id="fanT" min="0" max="34" value="15"><span class="v" id="fanTV">15°</span></div>
       <div class="row"><label>장수</label><input type="range" id="handN" min="1" max="7" value="7"><span class="v" id="handNV">7</span></div>
@@ -312,7 +319,8 @@ const ORIG = {
   roundRes  :{label:'RoundResult', path:'Popups/RoundResultPopup',x:0,   y:744, w:430, h:188, z:70},
 };
 const AR = 88/63;                       // 카드 세로/가로 비 (고정)
-const DEFAULTS = {cw:63, kcw:63, hcw:63, rail:144, fanR:531, fanT:15, handN:7, seats:4, zoom:85};
+const DEFAULTS = {cw:63, kcw:63, hcw:63, rail:144, fan:'arc', fanY:72, fanR:531, fanT:15,
+                  handN:7, seats:4, zoom:85};
 const OPPS = ['seatTop','seatLeft','seatRight'];
 const MAXGAP = 8;                       // 카드끼리 이보다 더 벌어지지 않는다
 
@@ -336,7 +344,8 @@ function applyPreset(name){
      다른 안으로 돌아가면 원래 고른 인원으로 복귀한다. */
   G.seats = (name === 'duelF') ? 2 : G.seatsUser;
   const n = G.seats - 1;
-  if (name !== 'duelF'){ G.cw = DEFAULTS.cw; G.kcw = DEFAULTS.kcw; G.hcw = DEFAULTS.hcw; G.fanR = DEFAULTS.fanR; }
+  if (name !== 'duelF'){ G.cw = DEFAULTS.cw; G.kcw = DEFAULTS.kcw; G.hcw = DEFAULTS.hcw;
+                       G.fanR = DEFAULTS.fanR; G.fanY = DEFAULTS.fanY; }
 
   /* A 계열 공통 — 좌석 4개를 전폭 가로 행으로, 공역은 가로 3칸 띠로 */
   function rowsLayout(rowH, gap, top, meH){
@@ -374,6 +383,8 @@ function applyPreset(name){
     const rad = d => d * Math.PI / 180;
     const denom = Math.sin(rad(G.fanT)) - Math.sin(rad(G.fanT - G.fanT/mid));
     if (denom > 0.0005) G.fanR = Math.min(1400, Math.ceil(W * (0.5 + 12/63) / denom));
+    /* 카드가 커진 만큼 부채 원점을 올려 손패 위쪽으로 삐져나가지 않게 한다 */
+    G.fanY = Math.round(H/2 + 6);
     duelCard = {cw:W, ch:H};
     const seatH_ = 50 + H + 12;
     Object.assign(P.seatTop,   {x:0, y:124, w:430, h:seatH_});
@@ -632,8 +643,17 @@ function topBtn(part, name){
    (이전 빌드는 rotate(-a)여서 부채가 안으로 오므라들었다 — 2026-07-31 수정) */
 let handGeom = {span:0, minStep:0};
 function handCenters(w){
-  const n = G.handN, R = G.fanR, tilt = G.fanT, mid = (n-1)/2, cxc = w/2;
-  const out = [];
+  const n = G.handN, HW = G.hcw, out = [];
+  if (G.fan === 'flat'){
+    /* 평면 — 회전·원호 없이 가로로만 균등 배치. 좁으면 그만큼 겹친다. */
+    const pad = 8, avail = w - pad*2;
+    const fit = n > 1 ? (avail - HW)/(n-1) : 0;
+    const step = Math.min(fit, HW + MAXGAP);
+    const x0 = (w - (HW + step*(n-1)))/2 + HW/2;
+    for (let i = 0; i < n; i++) out.push({a:0, x: x0 + step*i, dy:0});
+    return out;
+  }
+  const R = G.fanR, tilt = G.fanT, mid = (n-1)/2, cxc = w/2;
   for (let i = 0; i < n; i++){
     const a = mid === 0 ? 0 : tilt * (i - mid) / mid, r = a * Math.PI/180;
     out.push({a, x: cxc + R*Math.sin(r), dy: R*(1 - Math.cos(r))});
@@ -645,8 +665,7 @@ function hand(part){
   const shut = G.drawer && !G.dwOpen, HW = G.hcw, HH = hch();
   el.appendChild(E('frame', Object.assign(B(0,0,part.w,part.h+50), {background:C.handBg})));
   const HEAD = (G.handHeader && !shut) ? 32 : 0;
-  const cyc = shut ? part.h/2 + HH/2 - 16
-                   : HEAD + Math.max(HH/2 + 6, 72 - (HH-88)/2);
+  const cyc = shut ? part.h/2 + HH/2 - 16 : HEAD + G.fanY;
   if (HEAD){
     const s = DATA.seats.me, strip = E('frameSm',
       Object.assign(B(6, 5, part.w-12, 24), {background:'rgba(247,240,221,.92)', zIndex:29}));
@@ -659,16 +678,20 @@ function hand(part){
     el.appendChild(strip);
   }
   const cs = handCenters(part.w);
-  let minStep = Infinity;
+  let minStep = Infinity, topLocal = Infinity, botLocal = -Infinity;
   cs.forEach((c,i) => {
     if (i) minStep = Math.min(minStep, c.x - cs[i-1].x);
     const d = DATA.hand[i] || DATA.hand[DATA.hand.length-1];
-    const card = CARD(c.x - HW/2, cyc + c.dy - HH/2 - (d.staged && !shut ? 28 : 0), d, HW, HH);
+    const cardTop = cyc + c.dy - HH/2 - (d.staged && !shut ? 28 : 0);
+    topLocal = Math.min(topLocal, cardTop);
+    botLocal = Math.max(botLocal, cardTop + HH);
+    const card = CARD(c.x - HW/2, cardTop, d, HW, HH);
     card.style.transform = 'rotate(' + c.a + 'deg)';
     card.style.zIndex = d.staged ? 20 : 2 + i;
     el.appendChild(card);
   });
-  handGeom = {span: (cs[cs.length-1].x - cs[0].x) + HW, minStep: cs.length > 1 ? minStep : HW};
+  handGeom = {span: (cs[cs.length-1].x - cs[0].x) + HW, minStep: cs.length > 1 ? minStep : HW,
+              topLocal, botLocal, handH: part.h};
 
   if (shut){
     const t = E('frameSm', Object.assign(B(part.w/2-46, 6, 92, 20),
@@ -787,10 +810,15 @@ function setBox(id, ok, big, det){
   el.innerHTML = '<span class="big">' + big + '</span><span class="det">' + det + '</span>';
 }
 function drawClearance(){
-  const {b, who} = boardBottom(), top = P.hand.y, gap = top - b, bad = gap < 0;
+  /* 손패 박스가 아니라 **카드가 실제로 그려지는 최상단**을 기준으로 잰다.
+     부채 원점을 올리면 카드가 박스 위로 삐져나가 보드를 덮을 수 있다. */
+  const {b, who} = boardBottom();
+  const poke = Math.min(0, handGeom.topLocal == null ? 0 : handGeom.topLocal);
+  const top = Math.round(P.hand.y + poke), gap = top - b, bad = gap < 0;
   setBox('clr', !bad,
     (bad ? '손패 가림 ' + (-gap) + 'px ⚠' : '손패 여유 ' + gap + 'px ✓'),
-    '보드 하단 ' + b + ' (' + who + ') · 손패 상단 ' + top);
+    '보드 하단 ' + b + ' (' + who + ') · 카드 최상단 ' + top +
+    (poke < 0 ? ' (박스 ' + P.hand.y + ' 보다 ' + (-poke).toFixed(0) + 'px 위)' : ''));
   const line = E('', Object.assign(B(0, bad ? top : top, 430, bad ? b-top : Math.max(gap,1)),
     {zIndex:198, pointerEvents:'none',
      background: bad ? 'repeating-linear-gradient(45deg,rgba(224,96,63,.30) 0 6px,transparent 6px 12px)' : 'transparent',
@@ -811,11 +839,15 @@ function checkRules(){
     '공역 ' + G.kcw + '×' + kch() + ' · 손패 ' + G.hcw + '×' + hch() +
     (G.kcw > G.cw ? '  (플레이어 영역 ' + G.cw + '보다 큼 — R3가 허용)' : ''));
   const need = G.hcw * (0.5 + 12/63);
-  const okFan = handGeom.minStep >= need && handGeom.span <= 414;
-  setBox('fanChk', okFan, okFan ? '부채 가독 ✓' : '부채 가독 ⚠',
+  const btnTop = (handGeom.handH || 188) - 42;          // FOLD / END TURN 상단
+  const hitBtn = handGeom.botLocal > btnTop + 4;
+  const okFan = handGeom.minStep >= need && handGeom.span <= 414.5 && !hitBtn;
+  setBox('fanChk', okFan, okFan ? '부채 가독 ✓' : (hitBtn ? '부채 · 버튼 겹침 ⚠' : '부채 가독 ⚠'),
     '최소 간격 ' + handGeom.minStep.toFixed(1) + ' / 필요 ' + need.toFixed(1) +
-    ' · 부채 폭 ' + handGeom.span.toFixed(0) + '/414 · 영역 겹침 ' +
-    Math.max(0, lastOverlap).toFixed(1) + 'px');
+    ' · 부채 폭 ' + handGeom.span.toFixed(0) + '/414' +
+    ' · 카드 세로 ' + handGeom.topLocal.toFixed(0) + '~' + handGeom.botLocal.toFixed(0) +
+    ' (버튼 ' + btnTop + ')' +
+    ' · 영역 겹침 ' + Math.max(0, lastOverlap).toFixed(1) + 'px');
 }
 
 /* ── 선택 · 드래그 ────────────────────── */
@@ -881,6 +913,11 @@ function syncPanel(){
   $('hcw').value = G.hcw;  $('hcwV').textContent = G.hcw + '×' + hch();
   $('rail').value = G.rail; $('railV').textContent = G.rail;
   $('fanR').value = G.fanR; $('fanRV').textContent = G.fanR;
+  $('fanY').value = G.fanY; $('fanYV').textContent = G.fanY;
+  const flat = G.fan === 'flat';
+  $('fanR').disabled = flat; $('fanT').disabled = flat;
+  $('fanR').style.opacity = $('fanT').style.opacity = flat ? .35 : 1;
+  document.querySelectorAll('[data-fan]').forEach(x => x.classList.toggle('on', x.dataset.fan === G.fan));
 }
 ['fx','fy','fw','fh'].forEach((id,i) => $(id).addEventListener('input', () => {
   if (!sel) return;
@@ -908,6 +945,7 @@ function bindRange(id, fmt){
   el.value = G[id]; out.textContent = fmt(G[id]);
   el.addEventListener('input', () => { G[id] = +el.value; out.textContent = fmt(G[id]); render(); });
 }
+bindRange('fanY', v => v);
 bindRange('fanR', v => v);
 bindRange('fanT', v => v + '°');
 bindRange('handN',v => v);
@@ -936,6 +974,10 @@ document.querySelectorAll('[data-seats]').forEach(b => b.addEventListener('click
   applyPreset(pre);
   if (sel && !visible(sel)) sel = null;
   render();
+}));
+document.querySelectorAll('[data-fan]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-fan]').forEach(x => x.classList.toggle('on', x === b));
+  G.fan = b.dataset.fan; render();
 }));
 $('drawer').addEventListener('change', () => { G.drawer = $('drawer').checked; applyDrawer(); render(); });
 document.querySelectorAll('[data-dw]').forEach(b => b.addEventListener('click', () => {
@@ -967,11 +1009,18 @@ function updateOut(){
   if (G.cw !== DEFAULTS.cw || G.hcw !== DEFAULTS.hcw || G.kcw !== DEFAULTS.kcw)
     g.push('카드 크기    영역 ' + G.cw + 'x' + ch() + ' · 공역 ' + G.kcw + 'x' + kch() +
            ' · 손패 ' + G.hcw + 'x' + hch() + '  (KL_Card.prefab + 전 슬롯)');
-  if (G.fanR !== DEFAULTS.fanR || G.fanT !== DEFAULTS.fanT)
-    g.push('손패 부채    R=' + G.fanR + ' tilt=' + G.fanT + '°');
+  if (G.fan !== DEFAULTS.fan)
+    g.push('손패 배치    부채 -> 평면 균등 (슬롯 회전 0, 원호 없음)');
+  if (G.fanY !== DEFAULTS.fanY || (G.fan === 'arc' && (G.fanR !== DEFAULTS.fanR || G.fanT !== DEFAULTS.fanT)))
+    g.push('손패 배치    원점Y=' + G.fanY +
+           (G.fan === 'arc' ? ' R=' + G.fanR + ' tilt=' + G.fanT + '°' : '') +
+           '  (HandCards anchoredPosition.y ' + (DEFAULTS.fanY - G.fanY >= 0 ? '+' : '') +
+           (DEFAULTS.fanY - G.fanY) + ')');
   if (G.handN !== DEFAULTS.handN) g.push('손패 슬롯    7 -> ' + G.handN);
 
-  const {b, who} = boardBottom(), gap = P.hand.y - b;
+  const {b, who} = boardBottom();
+  const pokeOut = Math.min(0, handGeom.topLocal == null ? 0 : handGeom.topLocal);
+  const handTop = Math.round(P.hand.y + pokeOut), gap = handTop - b;
   let out = '';
   if (L.length) out += '// 위치·크기 델타 (현행 씬 기준)\n' + L.join('\n') + '\n';
   if (g.length) out += (out?'\n':'') + '// 구조 변경\n' + g.map(s => '  ' + s).join('\n') + '\n';
@@ -979,7 +1028,7 @@ function updateOut(){
     '  R1 전 좌석 동일   ' + G.cw + 'x' + ch() + '  OK\n' +
     '  R2 영역 <= 손패   ' + G.cw + ' <= ' + G.hcw + '  ' + (G.cw <= G.hcw ? 'OK' : '위반') + '\n' +
     '  R3 공역 <= 손패   ' + G.kcw + ' <= ' + G.hcw + '  ' + (G.kcw <= G.hcw ? 'OK' : '위반') + '\n' +
-    '  손패 가림         보드 하단 ' + b + ' (' + who + ') · 손패 상단 ' + P.hand.y + ' -> ' +
+    '  손패 가림         보드 하단 ' + b + ' (' + who + ') · 카드 최상단 ' + handTop + ' -> ' +
       (gap < 0 ? '가림 ' + (-gap) + 'px 조정 필요' : '여유 ' + gap + 'px OK') + '\n';
   $('out').value = out;
 }
@@ -991,7 +1040,7 @@ $('copy').addEventListener('click', () => {
 $('reset').addEventListener('click', () => {
   G = Object.assign({}, DEFAULTS, {preset:'orig', drawer:false, dwOpen:true, zoom:G.zoom,
     handHeader:false, handBase:{y:744, h:188}, seatsUser:G.seatsUser});
-  ['fanR','fanT','handN'].forEach(k => {
+  ['fanY','fanR','fanT','handN'].forEach(k => {
     $(k).value = G[k]; $(k+'V').textContent = k === 'fanT' ? G[k]+'°' : G[k];
   });
   $('drawer').checked = false;
