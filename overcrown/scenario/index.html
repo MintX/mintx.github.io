@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>OverCrown</title>
+
+    <!-- PWA: Add to Home Screen (Android / iOS) -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#15121f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+    <!-- iOS standalone web app -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="OverCrown" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+
+      /* 캔버스는 뷰포트 전체를 채운다(풀사이즈). 안전영역 인셋은 CSS로 캔버스를 줄이지
+         않고 Unity 내부에서 처리한다 — CSS로 캔버스를 인셋하면 Screen 크기가 바뀌어
+         CanvasScaler(430×900) 스케일이 깨지기 때문. viewport-fit=cover(위 meta)는 유지해야
+         .jslib가 env(safe-area-inset-*)를 읽을 수 있다. */
+      #unity-container {
+        position: fixed;
+        inset: 0;
+      }
+
+      #unity-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #000;
+      }
+
+      /* 세로 고정 폴백: manifest orientation이 안 먹는 환경(iOS PWA·브라우저 탭)에서
+         가로가 되면 게임을 가리고 세로 안내를 띄운다. 세로에서는 숨김.
+         모바일에서만 적용 — pointer:coarse + hover:none 은 터치 기기(폰/태블릿)를
+         가리키므로, 데스크톱 브라우저를 가로로 써도 오버레이가 뜨지 않는다. */
+      #rotate-hint {
+        display: none;
+      }
+      @media (orientation: landscape) and (pointer: coarse) and (hover: none) {
+        #rotate-hint {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          position: fixed;
+          inset: 0;
+          z-index: 100000;
+          background: #15121f;
+          color: #f5efe0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          text-align: center;
+          padding: 24px;
+          gap: 12px;
+        }
+        #rotate-hint .rh-icon {
+          font-size: 12vmin;
+        }
+        #rotate-hint .rh-text {
+          font-size: 4.2vmin;
+          line-height: 1.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+    </div>
+
+    <div id="rotate-hint">
+      <div class="rh-icon">📱↻</div>
+      <div class="rh-text">세로 모드로 이용해 주세요<br />Please rotate to portrait</div>
+    </div>
+
+    <script>
+      // 세로 고정 베스트-에포트: 안드로이드 브라우저/전체화면에서 동작. iOS Safari·비전체화면
+      // 탭은 미지원이라 조용히 실패(→ 위 CSS 오버레이가 폴백). 설치형 PWA는 manifest가 담당.
+      // 모바일(터치·hover 불가)에서만 시도 — 데스크톱에서는 잠그지 않는다.
+      try {
+        var isMobile = window.matchMedia &&
+          window.matchMedia("(pointer: coarse) and (hover: none)").matches;
+        if (isMobile && screen.orientation && screen.orientation.lock) {
+          var p = screen.orientation.lock("portrait");
+          if (p && p.catch) { p.catch(function () {}); }
+        }
+      } catch (e) {}
+    </script>
+
+    <script>
+      const canvas = document.querySelector("#unity-canvas");
+
+      const config = {
+        arguments: [],
+        dataUrl: "Build/scenario.data.unityweb",
+        frameworkUrl: "Build/scenario.framework.js.unityweb",
+        codeUrl: "Build/scenario.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Ovione",
+        productName: "OverCrown",
+        productVersion: "0.3",
+        matchWebGLToCanvasSize: true,
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      };
+
+      const script = document.createElement("script");
+      script.src = "Build/scenario.loader.js";
+      script.onload = () => {
+        createUnityInstance(canvas, config)
+          .then(() => {})
+          .catch((message) => {
+            alert(message);
+          });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
