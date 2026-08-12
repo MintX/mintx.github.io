@@ -33,6 +33,9 @@
   .part{cursor:grab}
   .part.sel{outline:1.5px dashed var(--acc);outline-offset:2px;z-index:99!important}
   .part.sel .rz{display:block}
+  .subpart{cursor:grab}
+  .subpart.sel{outline:1.5px dashed #56c8e8;outline-offset:2px;z-index:120!important}
+  .subpart.sel .rz{display:block;background:#56c8e8}
   .rz{display:none;right:-6px;bottom:-6px;width:12px;height:12px;background:var(--acc);
     border-radius:3px;cursor:nwse-resize;z-index:100}
   body.dragging{cursor:grabbing;user-select:none}
@@ -199,6 +202,8 @@
           <button data-seats="2">2</button><button data-seats="3">3</button><button data-seats="4" class="on">4</button>
         </div>
       </div>
+      <p class="hint" style="margin:2px 0 8px">배치는 <b>매치 시작 인원 기준으로 1회</b> 결정되고,
+        도중 탈락으로 인원이 줄어도 그대로 유지됩니다(연출 좌표 고정).</p>
       <label class="chk"><input type="checkbox" id="showRR"> 라운드 결과 팝업</label>
       <label class="chk"><input type="checkbox" id="showGrid"> 격자 (10px)</label>
       <label class="chk"><input type="checkbox" id="showSafe"> 안전영역 가이드</label>
@@ -215,6 +220,13 @@
       </div>
       <p class="hint">드래그로 이동 · 우하단 손잡이로 크기 조절 · <kbd>←↑↓→</kbd> 1px, <kbd>Shift</kbd>+ 10px</p>
       <div class="parts" id="partList"></div>
+      <h4 style="font-size:11px;color:var(--tx3);margin:14px 0 0;text-transform:uppercase;letter-spacing:.06em">
+        PlayerProfile 내부</h4>
+      <p class="hint" style="margin:3px 0 6px">프리팹이라 <b>한 좌석에서 옮기면 전 좌석에 같이</b> 적용됩니다.
+        현행·F안에서만 이 구성을 씁니다(A·A2·E는 행 왼쪽 레일이라 별개).</p>
+      <div class="parts" id="profList"></div>
+      <label class="chk"><input type="checkbox" id="showBadge"> 배지 전 좌석 표시</label>
+      <label class="chk"><input type="checkbox" id="showEmote"> 이모트 말풍선 표시</label>
     </div>
 
     <div class="grp">
@@ -328,6 +340,21 @@ let P = JSON.parse(JSON.stringify(ORIG));
 let G = Object.assign({}, DEFAULTS, {preset:'orig', drawer:false, dwOpen:true,
   handHeader:false, handBase:{y:744, h:188}, seatsUser:4});
 let sel = null, duelCard = null;
+
+/* ── PlayerProfile 내부 (프리팹 실측, 프로필 로컬 150×50 기준) ──
+   self 는 좌석 기준점으로부터의 오프셋. 나머지는 프로필 박스 안의 절대 좌표. */
+const PROF0 = {
+  self :{label:'PlayerProfile', path:'PlayerProfile',                    x:0,   y:0,   w:150, h:50},
+  ring :{label:'Ring',          path:'PlayerProfile/Ring',               x:0,   y:0,   w:50,  h:50},
+  name :{label:'Name',          path:'PlayerProfile/Name',               x:55,  y:7,   w:120, h:20},
+  token:{label:'TokenBadge',    path:'PlayerProfile/TokenBadgeFrame',    x:45,  y:26,  w:50,  h:24},
+  count:{label:'CardCount',     path:'PlayerProfile/CardCountFrame',     x:100, y:26,  w:50,  h:24},
+  badge:{label:'Badge',         path:'PlayerProfile/Badges/*',           x:-5,  y:10,  w:60,  h:30},
+  emote:{label:'EmoteBubble',   path:'PlayerProfile/EmoteBubble',        x:-15, y:-15, w:80,  h:80},
+};
+let PR = JSON.parse(JSON.stringify(PROF0));
+const selBox = () => sel ? (sel.k === 'prof' ? PR[sel.key] : P[sel.key]) : null;
+const isSel  = (k, key) => !!sel && sel.k === k && sel.key === key;
 
 const ch  = () => Math.round(G.cw  * AR);   // 영역 카드 높이
 const kch = () => Math.round(G.kcw * AR);   // 공역 카드 높이
@@ -498,18 +525,42 @@ function chip(x,y,w,h,bg,icoName,icoCol,val){
   b.appendChild(TX(17, 0, w-19, h-2, 14, C.badgeInk, 'c', '<b>'+val+'</b>'));
   f.appendChild(b); return f;
 }
-function PROFILE(x, y, s){
-  const p = E('', B(x, y, 150, 50));
-  const ring = E('circle', Object.assign(B(0,0,50,50), {background:C.ring}));
-  ring.appendChild(E('circle', Object.assign(B(3,3,44,44), {background:s.icon})));
-  p.appendChild(ring);
-  p.appendChild(TX(55, 7, 120, 20, 13, C.ink, 'l', '<b>' + s.name + '</b>'));
-  p.appendChild(chip(45,26,50,24,C.tokenFrame,'coin',null,s.tokens));
-  p.appendChild(chip(100,26,50,24,C.countFrame,'hand',C.badgeInk,'x'+s.hand));
-  if (s.badge){
-    const bd = E('frameSm', Object.assign(B(-5, 10, 60, 30), {background:C.badgeGold, zIndex:3}));
-    bd.appendChild(TX(0,0,60,30,16,C.badgeGoldInk,'c', s.badge));
-    p.appendChild(bd);
+function PROFILE(bx, by, s){
+  const S = PR.self;
+  const p = E('', B(bx + S.x, by + S.y, S.w, S.h));
+  /* 각 조각을 .subpart 로 감싸 개별로 잡아 옮길 수 있게 한다.
+     PR 은 좌석마다 복제되지 않는 단일 모델 — 프리팹이므로 한 번 옮기면 전 좌석에 반영된다. */
+  const sub = (key, node, z) => {
+    const d = PR[key];
+    const wrap = E('subpart' + (isSel('prof', key) ? ' sel' : ''), B(d.x, d.y, d.w, d.h));
+    wrap.dataset.sub = key;
+    if (z) wrap.style.zIndex = z;
+    wrap.appendChild(node);
+    wrap.appendChild(E('rz'));
+    return wrap;
+  };
+  const R = PR.ring, ins = Math.max(1, Math.round(R.w * 0.06));
+  const ring = E('circle', Object.assign(B(0,0,R.w,R.h), {background:C.ring}));
+  ring.appendChild(E('circle', Object.assign(B(ins,ins,R.w-ins*2,R.h-ins*2), {background:s.icon})));
+  p.appendChild(sub('ring', ring));
+
+  const N = PR.name;
+  p.appendChild(sub('name', TX(0, 0, N.w, N.h, 13*Math.min(1, N.h/20), C.ink, 'l', '<b>'+s.name+'</b>')));
+  const T = PR.token, K = PR.count;
+  p.appendChild(sub('token', chip(0,0,T.w,T.h,C.tokenFrame,'coin',null,s.tokens)));
+  p.appendChild(sub('count', chip(0,0,K.w,K.h,C.countFrame,'hand',C.badgeInk,'x'+s.hand)));
+
+  if (s.badge || $('showBadge').checked){
+    const D = PR.badge;
+    const bd = E('frameSm', Object.assign(B(0,0,D.w,D.h), {background:C.badgeGold}));
+    bd.appendChild(TX(0,0,D.w,D.h, 16*Math.min(1, D.h/30), C.badgeGoldInk, 'c', s.badge || '제출'));
+    p.appendChild(sub('badge', bd, 4));
+  }
+  if ($('showEmote').checked){
+    const M = PR.emote;
+    const em = E('circle', Object.assign(B(0,0,M.w,M.h), {background:C.emote || '#778899'}));
+    em.appendChild(ICON(0, M.h*0.03, M.w, M.h, '06_crown', '#FFFFFF'));
+    p.appendChild(sub('emote', em, 5));
   }
   return p;
 }
@@ -783,7 +834,7 @@ function render(){
   Object.keys(P).forEach(key => {
     if (!visible(key)) return;
     const p = P[key];
-    const box = E('part' + (sel === key ? ' sel' : ''), Object.assign(B(p.x,p.y,p.w,p.h), {zIndex:p.z}));
+    const box = E('part' + (isSel('part', key) ? ' sel' : ''), Object.assign(B(p.x,p.y,p.w,p.h), {zIndex:p.z}));
     box.dataset.key = key;
     box.appendChild(build(key, p));
     box.appendChild(E('rz'));
@@ -853,20 +904,24 @@ function checkRules(){
 /* ── 선택 · 드래그 ────────────────────── */
 let drag = null;
 stage.addEventListener('pointerdown', e => {
-  const box = e.target.closest('.part');
+  const subEl = e.target.closest('.subpart');          // 프로필 조각이 좌석보다 우선
+  const box   = subEl || e.target.closest('.part');
   if (!box){ sel = null; render(); return; }
-  sel = box.dataset.key; render();
-  const p = P[sel];
-  drag = {key:sel, rz:e.target.classList.contains('rz'), sx:e.clientX, sy:e.clientY,
+  sel = subEl ? {k:'prof', key:subEl.dataset.sub} : {k:'part', key:box.dataset.key};
+  render();
+  const p = selBox();
+  drag = {rz:e.target.classList.contains('rz'), sx:e.clientX, sy:e.clientY,
           ox:p.x, oy:p.y, ow:p.w, oh:p.h, z:G.zoom/100};
   document.body.classList.add('dragging');
   e.preventDefault();
 });
 window.addEventListener('pointermove', e => {
   if (!drag) return;
-  const dx = (e.clientX-drag.sx)/drag.z, dy = (e.clientY-drag.sy)/drag.z, p = P[drag.key];
-  if (drag.rz){ p.w = Math.max(24, Math.round(drag.ow+dx)); p.h = Math.max(24, Math.round(drag.oh+dy)); }
-  else        { p.x = Math.round(drag.ox+dx);               p.y = Math.round(drag.oy+dy); }
+  const dx = (e.clientX-drag.sx)/drag.z, dy = (e.clientY-drag.sy)/drag.z, p = selBox();
+  if (!p) return;
+  const min = sel.k === 'prof' ? 8 : 24;
+  if (drag.rz){ p.w = Math.max(min, Math.round(drag.ow+dx)); p.h = Math.max(min, Math.round(drag.oh+dy)); }
+  else        { p.x = Math.round(drag.ox+dx);                p.y = Math.round(drag.oy+dy); }
   render();
 });
 window.addEventListener('pointerup', () => { drag = null; document.body.classList.remove('dragging'); });
@@ -874,8 +929,8 @@ window.addEventListener('keydown', e => {
   if (!sel || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   const k = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key];
   if (!k) return;
-  const s = e.shiftKey ? 10 : 1;
-  P[sel].x += k[0]*s; P[sel].y += k[1]*s; render(); e.preventDefault();
+  const s = e.shiftKey ? 10 : 1, b = selBox();
+  b.x += k[0]*s; b.y += k[1]*s; render(); e.preventDefault();
 });
 
 /* ── 패널 ─────────────────────────────── */
@@ -891,18 +946,29 @@ const NOTE = {
         'R2·R3로 영역·공역도 같은 크기로 올립니다. 남는 세로는 전부 좌석 사이 여백으로 돌립니다.',
 };
 function syncPanel(){
-  $('selName').textContent = sel ? P[sel].path : '— 보드에서 요소를 클릭하세요 —';
+  const cur = selBox();
+  $('selName').textContent = cur ? cur.path : '— 보드에서 요소를 클릭하세요 —';
   ['fx','fy','fw','fh'].forEach((id,i) => {
-    const el = $(id); el.disabled = !sel;
-    el.value = sel ? [P[sel].x,P[sel].y,P[sel].w,P[sel].h][i] : '';
+    const el = $(id); el.disabled = !cur;
+    el.value = cur ? [cur.x,cur.y,cur.w,cur.h][i] : '';
   });
   const list = $('partList'); list.innerHTML = '';
   Object.keys(P).forEach(key => {
     if (!visible(key)) return;
     const b = document.createElement('button');
-    b.textContent = P[key].label; b.className = sel === key ? 'on' : '';
-    b.onclick = () => { sel = key; render(); };
+    b.textContent = P[key].label; b.className = isSel('part', key) ? 'on' : '';
+    b.onclick = () => { sel = {k:'part', key}; render(); };
     list.appendChild(b);
+  });
+  const plist = $('profList'); plist.innerHTML = '';
+  const usesProfile = G.preset === 'orig' || G.preset === 'duelF';
+  Object.keys(PR).forEach(key => {
+    const b = document.createElement('button');
+    b.textContent = PR[key].label; b.className = isSel('prof', key) ? 'on' : '';
+    b.disabled = !usesProfile;
+    b.style.opacity = usesProfile ? 1 : .35;
+    b.onclick = () => { sel = {k:'prof', key}; render(); };
+    plist.appendChild(b);
   });
   $('presetNote').textContent = NOTE[G.preset] +
     (duelCard ? '  →  카드 ' + duelCard.cw + '×' + duelCard.ch +
@@ -920,9 +986,9 @@ function syncPanel(){
   document.querySelectorAll('[data-fan]').forEach(x => x.classList.toggle('on', x.dataset.fan === G.fan));
 }
 ['fx','fy','fw','fh'].forEach((id,i) => $(id).addEventListener('input', () => {
-  if (!sel) return;
+  const b = selBox(); if (!b) return;
   const v = parseFloat($(id).value); if (isNaN(v)) return;
-  P[sel][['x','y','w','h'][i]] = v; render();
+  b[['x','y','w','h'][i]] = v; render();
 }));
 /* 카드 크기 — R2를 입력 단계에서 강제한다(영역이 손패를 넘지 못하게 clamp) */
 $('hcw').addEventListener('input', () => {
@@ -958,7 +1024,7 @@ function applyZoom(){
   stage.parentElement.style.height = (932*z) + 'px';
   stage.parentElement.style.width  = (430*z) + 'px';
 }
-['showRR','showGrid','showSafe'].forEach(id => $(id).addEventListener('change', render));
+['showRR','showGrid','showSafe','showBadge','showEmote'].forEach(id => $(id).addEventListener('change', render));
 document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('[data-preset]').forEach(x => x.classList.toggle('on', x === b));
   sel = null; applyPreset(b.dataset.preset);
@@ -972,7 +1038,7 @@ document.querySelectorAll('[data-seats]').forEach(b => b.addEventListener('click
   if (pre === 'duelF' && G.seatsUser !== 2){ pre = 'rowA';
     document.querySelectorAll('[data-preset]').forEach(x => x.classList.toggle('on', x.dataset.preset === 'rowA')); }
   applyPreset(pre);
-  if (sel && !visible(sel)) sel = null;
+  if (sel && sel.k === 'part' && !visible(sel.key)) sel = null;
   render();
 }));
 document.querySelectorAll('[data-fan]').forEach(b => b.addEventListener('click', () => {
@@ -1018,11 +1084,21 @@ function updateOut(){
            (DEFAULTS.fanY - G.fanY) + ')');
   if (G.handN !== DEFAULTS.handN) g.push('손패 슬롯    7 -> ' + G.handN);
 
+  const PL = [];
+  Object.keys(PR).forEach(key => {
+    const a = PR[key], o = PROF0[key];
+    const dx = a.x-o.x, dy = a.y-o.y, dw = a.w-o.w, dh = a.h-o.h;
+    if (!dx && !dy && !dw && !dh) return;
+    PL.push(o.path);
+    if (dx || dy) PL.push('  anchoredPosition += (' + fmt(dx) + ', ' + fmt(-dy) + ')');
+    if (dw || dh) PL.push('  sizeDelta        += (' + fmt(dw) + ', ' + fmt(dh) + ')');
+  });
   const {b, who} = boardBottom();
   const pokeOut = Math.min(0, handGeom.topLocal == null ? 0 : handGeom.topLocal);
   const handTop = Math.round(P.hand.y + pokeOut), gap = handTop - b;
   let out = '';
   if (L.length) out += '// 위치·크기 델타 (현행 씬 기준)\n' + L.join('\n') + '\n';
+  if (PL.length) out += (out?'\n':'') + '// PlayerProfile 내부 (프리팹 · 전 좌석 공통)\n' + PL.join('\n') + '\n';
   if (g.length) out += (out?'\n':'') + '// 구조 변경\n' + g.map(s => '  ' + s).join('\n') + '\n';
   out += (out?'\n':'') + '// 검사\n' +
     '  R1 전 좌석 동일   ' + G.cw + 'x' + ch() + '  OK\n' +
@@ -1047,6 +1123,7 @@ $('reset').addEventListener('click', () => {
   document.querySelectorAll('[data-preset]').forEach(x => x.classList.toggle('on', x.dataset.preset === 'orig'));
   document.querySelectorAll('[data-seats]').forEach(x => x.classList.toggle('on', +x.dataset.seats === G.seats));
   document.querySelectorAll('[data-dw]').forEach(x => x.classList.toggle('on', x.dataset.dw === 'open'));
+  PR = JSON.parse(JSON.stringify(PROF0));
   sel = null; applyPreset('orig'); render();
 });
 
