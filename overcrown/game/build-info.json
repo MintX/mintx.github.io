@@ -3,5 +3,7 @@
   "profile": "Mobile-Game",
   "photonAppId": "",
   "photonAppIdPatched": 0,
-  "builtAt": "2026-08-12T19:21:28Z"
+  "gatePolicyUrl": "",
+  "gateInjected": 0,
+  "builtAt": "2026-08-12T20:33:27Z"
 }
