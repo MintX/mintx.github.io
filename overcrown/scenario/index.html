@@ -20,6 +20,70 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="OverCrown" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+    <!-- ─── 사용 통계(GA4) ──────────────────────────────────────────────────────────
+         측정 ID는 **배포처(distribution) 빌드에만** 박힌다. 아래 두 줄은 빈 값으로 리포에
+         들어 있고, `build.sh --dist <이름>` 이 그 배포처의 값(scripts/dist/<이름>.sh 의
+         DIST_GA_MEASUREMENT_ID)을 산출물의 index.html 에 갈아끼운다
+         (Assets/Editor/WebGLBuilder.cs · 마커 주석으로 찾는다).
+
+         ID 가 비면 gtag 를 **아예 내려받지 않고** window.ocTrack 은 무동작으로 남는다 —
+         로컬 빌드·개발 빌드·다른 배포처가 통계에 섞이지 않는다. 게임 쪽 C# 이벤트도 전부
+         이 ocTrack 하나로 나가므로(Assets/Plugins/WebGL/AnalyticsBridge.jslib), 배포처를
+         가르는 스위치는 이 한 줄이 전부다. 브랜치를 나눌 필요가 없는 이유다.
+
+         개인 식별 정보는 보내지 않는다 — 닉네임·방 이름·UserId 는 파라미터에 넣지 않는다. -->
+    <script>
+      window.__OC_GA_ID = ""; /* OC_GA_MEASUREMENT_ID */
+      window.__OC_BUILD = "scenario@2026-08-16T08:50:59Z"; /* OC_BUILD_STAMP */
+
+      (function () {
+        var id = window.__OC_GA_ID;
+        // 배포 경로가 /<접두사>/<변형>/ 이라 마지막 칸이 곧 변형(game·solo)이다.
+        var variant = location.pathname.split("/").filter(Boolean).pop() || "unknown";
+
+        // 기본값은 무동작. 측정 ID가 없으면 여기서 끝난다(네트워크 요청 0).
+        window.ocTrack = function () {};
+        if (!id) {
+          return;
+        }
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+          window.dataLayer.push(arguments);
+        }
+        window.gtag = gtag;
+        gtag("js", new Date());
+
+        // ?debug_mode=1 로 열면 이 세션의 이벤트가 GA4 DebugView 에 실시간으로 뜬다(파라미터 값까지).
+        // gtag 는 URL 을 스스로 보지 않으므로 여기서 읽어 넘겨야 한다 — 이게 없으면 확장 프로그램을
+        // 깔아야만 확인할 수 있다. 일반 사용자는 이 값이 없으니 평소 수집에는 영향이 없다.
+        var config = {
+          variant: variant,
+          build: window.__OC_BUILD || "dev",
+        };
+        if (/(^|[?&])debug_mode=1(&|$)/.test(location.search)) {
+          config.debug_mode = true;
+        }
+
+        // 공통 파라미터: 어느 변형의, 언제 구운 빌드에서 난 일인가.
+        gtag("config", id, config);
+
+        window.ocTrack = function (name, params) {
+          try {
+            var p = params || {};
+            p.variant = variant;
+            gtag("event", name, p);
+          } catch (e) {}
+        };
+
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(id);
+        document.head.appendChild(s);
+      })();
+    </script>
+
     <style>
       html,
       body {
@@ -120,16 +184,51 @@
         devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       };
 
+      // 로딩 계측: WebGL 은 수십 MB를 받아야 첫 화면이 뜬다 — **게임을 한 번도 못 보고
+      // 떠나는 사람**이 어디서 얼마나 빠지는지는 여기서만 알 수 있다(GA4 페이지뷰는
+      // "열었다"까지만 안다). 측정 ID가 없으면 ocTrack 이 무동작이라 그대로 조용하다.
+      let loadStartMs = performance.now();
+      let loadProgress = 0;
+      let unityReady = false;
+
       const script = document.createElement("script");
       script.src = "Build/scenario.loader.js";
       script.onload = () => {
-        createUnityInstance(canvas, config)
-          .then(() => {})
+        window.ocTrack("unity_load_start", {});
+        createUnityInstance(canvas, config, (p) => {
+          loadProgress = p;
+        })
+          .then(() => {
+            unityReady = true;
+            window.ocTrack("unity_ready", {
+              load_seconds: Math.round((performance.now() - loadStartMs) / 100) / 10,
+            });
+          })
           .catch((message) => {
+            window.ocTrack("unity_error", { message: String(message).slice(0, 100) });
             alert(message);
           });
       };
+      script.onerror = () => {
+        window.ocTrack("unity_error", { message: "loader script failed" });
+      };
       document.body.appendChild(script);
+
+      // 로딩 도중 이탈. pagehide 는 탭 닫기·뒤로가기·모바일 홈 이동을 다 잡고, gtag 는
+      // 이 시점 전송에 sendBeacon 을 쓴다. 준비된 뒤에는 보내지 않는다(세션 길이는 GA4 기본
+      // 참여 시간이 이미 잰다).
+      window.addEventListener(
+        "pagehide",
+        () => {
+          if (!unityReady) {
+            window.ocTrack("unity_load_abandon", {
+              progress_pct: Math.round(loadProgress * 100),
+              seconds: Math.round((performance.now() - loadStartMs) / 100) / 10,
+            });
+          }
+        },
+        { once: true }
+      );
     </script>
   </body>
 </html>
