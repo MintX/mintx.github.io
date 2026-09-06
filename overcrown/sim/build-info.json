@@ -1,6 +1,6 @@
 {
   "variant": "sim",
-  "version": "v0.5-8-g6837cbb",
+  "version": "v0.5-9-gb0220b2",
   "profile": "Desktop-Sim",
   "photonAppId": "",
   "photonAppIdPatched": 0,
@@ -8,5 +8,5 @@
   "gateInjected": 0,
   "gaMeasurementId": "",
   "gaInjected": 0,
-  "builtAt": "2026-09-06T13:07:47Z"
+  "builtAt": "2026-09-06T13:31:27Z"
 }
