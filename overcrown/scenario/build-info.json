@@ -1,6 +1,6 @@
 {
   "variant": "scenario",
-  "version": "v0.5",
+  "version": "v0.5-7-g6ec6c4e",
   "profile": "Scenario-Gallery",
   "photonAppId": "",
   "photonAppIdPatched": 0,
@@ -8,5 +8,5 @@
   "gateInjected": 0,
   "gaMeasurementId": "",
   "gaInjected": 0,
-  "builtAt": "2026-09-06T07:53:48Z"
+  "builtAt": "2026-09-06T12:56:51Z"
 }
