@@ -1,6 +1,6 @@
 {
   "variant": "game",
-  "version": "v0.5-9-gb0220b2",
+  "version": "v0.5-10-g72c78d8",
   "profile": "Mobile-Game",
   "photonAppId": "",
   "photonAppIdPatched": 0,
@@ -8,5 +8,5 @@
   "gateInjected": 0,
   "gaMeasurementId": "",
   "gaInjected": 0,
-  "builtAt": "2026-09-06T13:32:52Z"
+  "builtAt": "2026-09-06T14:06:06Z"
 }
