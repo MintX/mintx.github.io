@@ -1,6 +1,6 @@
 {
   "variant": "solo",
-  "version": "editor~v0.5-99-gfc9d61d",
+  "version": "editor~v0.5-100-g9f777e8",
   "profile": "Mobile-Solo",
   "photonAppId": "",
   "photonAppIdPatched": 0,
@@ -8,5 +8,5 @@
   "gateInjected": 0,
   "gaMeasurementId": "",
   "gaInjected": 0,
-  "builtAt": "2026-09-17T04:27:28Z"
+  "builtAt": "2026-09-17T04:44:20Z"
 }
